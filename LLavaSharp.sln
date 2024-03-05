@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34316.72
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LLavaSharp", "LLavaSharp\LLavaSharp.csproj", "{2E41FD84-BB62-4AC8-A3A1-E89F2FB5DB5D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LLavaSharpTest", "LLavaSharpTest\LLavaSharpTest.csproj", "{871B9D42-FD04-4CAB-B85A-2C68A81758AB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2E41FD84-BB62-4AC8-A3A1-E89F2FB5DB5D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2E41FD84-BB62-4AC8-A3A1-E89F2FB5DB5D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2E41FD84-BB62-4AC8-A3A1-E89F2FB5DB5D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2E41FD84-BB62-4AC8-A3A1-E89F2FB5DB5D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{871B9D42-FD04-4CAB-B85A-2C68A81758AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{871B9D42-FD04-4CAB-B85A-2C68A81758AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{871B9D42-FD04-4CAB-B85A-2C68A81758AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{871B9D42-FD04-4CAB-B85A-2C68A81758AB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {21CD6B22-077D-464C-B9E2-AB6568EC3265}
+	EndGlobalSection
+EndGlobal
