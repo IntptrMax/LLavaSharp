@@ -1,0 +1,7 @@
+﻿public enum llama_pooling_type
+{
+    LLAMA_POOLING_TYPE_UNSPECIFIED = -1,
+    LLAMA_POOLING_TYPE_NONE = 0,
+    LLAMA_POOLING_TYPE_MEAN = 1,
+    LLAMA_POOLING_TYPE_CLS = 2,
+};

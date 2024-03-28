@@ -12,7 +12,7 @@ public class gpt_params
     public int32_t seed;    // RNG seed
 
     public int32_t n_threads = get_num_physical_cores();
-    public int32_t n_threads_batch = -1;    // number of threads to use for batch processing (-1 = use n_threads)
+    public int32_t n_threads_batch = get_num_physical_cores();    // number of threads to use for batch processing (-1 = use n_threads)
     public int32_t n_predict = -1;    // new tokens to predict
     public int32_t n_ctx = 512;   // context size
     public int32_t n_batch = 512;   // batch size for prompt processing (must be >=32 to use BLAS)
@@ -27,7 +27,7 @@ public class gpt_params
     public int32_t n_gpu_layers_draft = -1;    // number of layers to store in VRAM for the draft model (-1 - use default)
     public llama_split_mode split_mode = llama_split_mode.LLAMA_SPLIT_LAYER; // how to split the model across GPUs
     public int32_t main_gpu = 0;     // the GPU that is used for scratch and small tensors
-    public float[] tensor_split = new float[LLAMA_MAX_DEVICES] { 0 };   // how split tensors should be distributed across GPUs
+    public IntPtr tensor_split = IntPtr.Zero;   // how split tensors should be distributed across GPUs
     public int32_t n_beams = 0;     // if non-zero then use beam search of given width.
     public int32_t grp_attn_n = 1;     // group-attention factor
     public int32_t grp_attn_w = 512;   // group-attention width
@@ -55,7 +55,7 @@ public class gpt_params
     public string[] antiprompt = new string[] { }; // string upon seeing which more user input is prompted
     public string logdir = "";  // directory in which to save YAML log files
 
-    public llama_model_kv_override[] kv_overrides;
+    public IntPtr kv_overrides; //kv_override* kv_overrides;
 
     // TODO: avoid tuple, use struct
     public List<Tuple<string, float>> lora_adapter = new List<Tuple<string, float>>(); // lora adapter path with user defined scale

@@ -51,6 +51,7 @@
     <Compile Include="structs\common\grammar\parse_state.cs" />
     <Compile Include="structs\common\sampling\llama_sampling_context.cs" />
     <Compile Include="structs\common\sampling\llama_sampling_params.cs" />
+    <Compile Include="structs\ggml\ggml_numa_strategy.cs" />
     <Compile Include="structs\ggml\ggml_type.cs" />
     <Compile Include="structs\llama\llama_batch.cs" />
     <Compile Include="structs\llama\llama_context_params.cs" />
@@ -58,6 +59,8 @@
     <Compile Include="structs\llama\llama_model_kv_override.cs" />
     <Compile Include="structs\llama\llama_model_kv_override_type.cs" />
     <Compile Include="structs\llama\llama_model_params.cs" />
+    <Compile Include="structs\llama\llama_pooling_type.cs" />
+    <Compile Include="structs\llama\llama_rope_scaling_type.cs" />
     <Compile Include="structs\llama\llama_split_mode.cs" />
     <Compile Include="structs\llama\llama_token_data.cs" />
     <Compile Include="structs\llama\llama_token_data_array.cs" />

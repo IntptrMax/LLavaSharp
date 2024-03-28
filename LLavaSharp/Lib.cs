@@ -14,7 +14,7 @@ namespace LLavaSharp
     {
         public static llava_context llava_init(gpt_params @params)
         {
-            Native.ggml_time_init();
+            //Native.ggml_time_init();
             string clip_model_path = @params.mmproj;
             if (string.IsNullOrEmpty(@params.prompt))
             {
@@ -27,6 +27,7 @@ namespace LLavaSharp
                 throw new Exception("error: unable to load clip_model\n");
             }
             Native.llama_backend_init(@params.numa);
+            Native.llama_numa_init(ggml_numa_strategy.GGML_NUMA_STRATEGY_DISABLED);
 
             llama_model_params model_params = llama_model_params_from_gpt_params(@params);
             IntPtr model = Native.llama_load_model_from_file(@params.model, model_params);
@@ -34,6 +35,8 @@ namespace LLavaSharp
             {
                 throw new Exception("error: failed to load the llama_model\n");
             }
+            int size = Marshal.SizeOf(typeof(llama_context_params));
+
             llama_context_params ctx_params = llama_context_params_from_gpt_params(@params);
             ctx_params.n_ctx = @params.n_ctx < 4096 ? 4096 : @params.n_ctx; // we need a longer context size to process image embeddings, and if in llava-1.6 at least image embedding size (2880 tokens) + batch size (512). thanks to @zsogitbe
             IntPtr ctx_llama = Native.llama_new_context_with_model(model, ctx_params);
@@ -47,6 +50,7 @@ namespace LLavaSharp
             ctx_llava.ctx_llama = ctx_llama;
             ctx_llava.ctx_clip = ctx_clip;
             ctx_llava.model = model;
+            Native.llama_set_n_threads(ctx_llama, (uint)@params.n_threads, (uint)@params.n_threads_batch);
             return ctx_llava;
         }
 
@@ -66,7 +70,7 @@ namespace LLavaSharp
             mparams.use_mlock = @params.use_mlock;
             if (null == @params.kv_overrides)
             {
-                mparams.kv_overrides = new llama_model_kv_override[] { };
+                mparams.kv_overrides = IntPtr.Zero;
             }
             else
             {
@@ -85,11 +89,11 @@ namespace LLavaSharp
             cparams.n_batch = @params.n_batch;
             cparams.n_threads = @params.n_threads;
             cparams.n_threads_batch = @params.n_threads_batch == -1 ? @params.n_threads : @params.n_threads_batch;
-            cparams.mul_mat_q = @params.mul_mat_q;
+            //cparams.mul_mat_q = @params.mul_mat_q;
             cparams.seed = @params.seed;
             cparams.logits_all = @params.logits_all;
-            cparams.embedding = @params.embedding;
-            cparams.rope_scaling_type = @params.rope_scaling_type;
+            //cparams.embedding = @params.embedding;
+            cparams.rope_scaling_type = (llama_rope_scaling_type)@params.rope_scaling_type;
             cparams.rope_freq_base = @params.rope_freq_base;
             cparams.rope_freq_scale = @params.rope_freq_scale;
             cparams.yarn_ext_factor = @params.yarn_ext_factor;
@@ -165,12 +169,11 @@ namespace LLavaSharp
             return add_bos ? add_bos : (Native.llama_vocab_type(model) == llama_vocab_type.LLAMA_VOCAB_TYPE_SPM);
         }
 
-        private static bool eval_string(IntPtr ctx_llama, string str, int n_batch, ref int n_past, bool add_bos)
+        private static bool eval_string(llava_context ctx_llava, string str, int n_batch, ref int n_past, bool add_bos)
         {
             string str2 = str;
-            IntPtr model = Native.llama_get_model(ctx_llama);
-            int[] embd_inp = llama_tokenize(model, str2, add_bos, true);
-            eval_tokens(ctx_llama, embd_inp, n_batch, ref n_past);
+            int[] embd_inp = llama_tokenize(ctx_llava.model, str2, add_bos, true);
+            eval_tokens(ctx_llava.ctx_llama, embd_inp, n_batch, ref n_past);
             return true;
         }
 
@@ -196,10 +199,7 @@ namespace LLavaSharp
                     n_eval = n_batch;
                 }
                 IntPtr intPtr = Marshal.UnsafeAddrOfPinnedArrayElement(tokens, i);
-                //llama_batch batch = Native.llama_batch_get_one(intPtr, n_eval, ref n_past, 0);
-                llama_batch batch = llama_batch_get_one(intPtr, n_eval, ref n_past, 0);
-
-                int num = (int)Marshal.PtrToStructure(batch.token, typeof(int));
+                llama_batch batch = Native.llama_batch_get_one(intPtr, n_eval, n_past, 0);
 
                 int decodeResult = Native.llama_decode(ctx_llama, batch);
                 if (0 != decodeResult)
@@ -212,9 +212,9 @@ namespace LLavaSharp
             return true;
         }
 
-        private static bool llava_eval_image_embed(IntPtr ctx_llama, llava_image_embed image_embed, int n_batch, ref int n_past)
+        private static bool llava_eval_image_embed(llava_context ctx_llava, llava_image_embed image_embed, int n_batch, ref int n_past)
         {
-            int n_embd = Native.llama_n_embd(Native.llama_get_model(ctx_llama));
+            int n_embd = Native.llama_n_embd(ctx_llava.model);
 
             for (int i = 0; i < image_embed.n_image_pos; i += n_batch)
             {
@@ -237,30 +237,13 @@ namespace LLavaSharp
                     all_seq_id = 0
 
                 };
-                if (0 != Native.llama_decode(ctx_llama, batch))
+                if (0 != Native.llama_decode(ctx_llava.ctx_llama, batch))
                 {
                     throw new Exception("failed to eval image embed\n");
                 }
                 n_past += n_eval;
             }
             return true;
-        }
-
-        private static llama_batch llama_batch_get_one(IntPtr tokens, int n_tokens, ref int pos_0, int seq_id)
-        {
-            return new llama_batch
-            {
-                n_tokens = n_tokens,
-                token = tokens,
-                embd = IntPtr.Zero,
-                pos = IntPtr.Zero,
-                n_seq_id = IntPtr.Zero,
-                seq_id = IntPtr.Zero,
-                logits = IntPtr.Zero,
-                all_pos_0 = pos_0,
-                all_pos_1 = 1,
-                all_seq_id = seq_id
-            };
         }
 
         public static string process_prompt(llava_context ctx_llava, llava_image_embed image_embed, gpt_params @params, string prompt, float temp = 0)
@@ -277,17 +260,16 @@ namespace LLavaSharp
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Restart();
             // llava chat format is "<system_prompt>\nUSER:<image_embeddings>\n<textual_prompt>\nASSISTANT:"
-            Lib.eval_string(ctx_llava.ctx_llama, QUESTION_ANSWERING_PROMPT, @params.n_batch, ref n_past, add_bos);
-            Console.WriteLine("Time to eval system prompt: " + stopwatch.ElapsedMilliseconds);
+            Lib.eval_string(ctx_llava, QUESTION_ANSWERING_PROMPT, @params.n_batch, ref n_past, add_bos);
+            Console.WriteLine($"Time to eval system prompt: {stopwatch.ElapsedMilliseconds} ms");
 
             stopwatch.Restart();
-            //Lib.llava_eval_image_embed(ctx_llava.ctx_llama, image_embed, @params.n_batch, ref n_past);
             Native.llava_eval_image_embed(ctx_llava.ctx_llama, image_embed, @params.n_batch, ref n_past);
-            Console.WriteLine("Time to eval image embed: " + stopwatch.ElapsedMilliseconds);
+            Console.WriteLine($"Time to eval image embed: {stopwatch.ElapsedMilliseconds} ms");
 
             stopwatch.Restart();
-            Lib.eval_string(ctx_llava.ctx_llama, prompt + ASSISTANT_PROMPT_SUFFIX, @params.n_batch, ref n_past, false);
-            Console.WriteLine("Time to eval textual prompt: " + stopwatch.ElapsedMilliseconds);
+            Lib.eval_string(ctx_llava, prompt + ASSISTANT_PROMPT_SUFFIX, @params.n_batch, ref n_past, false);
+            Console.WriteLine($"Time to eval textual prompt: {stopwatch.ElapsedMilliseconds} ms");
 
 
             llama_sampling_context ctx_sampling = llama_sampling_init(@params.sparams);
@@ -295,7 +277,7 @@ namespace LLavaSharp
             StringBuilder stringBuilder = new StringBuilder();
             for (int i = 0; i < max_tgt_len; i++)
             {
-                string tmp = sample(ctx_sampling, ctx_llava.ctx_llama, ref n_past, temp);
+                string tmp = sample(ctx_sampling, ctx_llava, ref n_past, temp);
                 if (tmp == "</s>") break;
                 if (tmp.Contains("###")) break; // Yi-VL behavior
                 if (tmp.Contains("<|im_end|>")) break; // Yi-34B llava-1.6 - for some reason those decode not as the correct token (tokenizer works)
@@ -321,26 +303,26 @@ namespace LLavaSharp
             Array.Resize(ref result.prev, @params.n_prev);
             return result;
         }
-        private static llama_token llama_sampling_sample(llama_sampling_context ctx_sampling, IntPtr ctx_main, IntPtr ctx_cfg, float temp = 0, int idx = 0)
+        private static llama_token llama_sampling_sample(llama_sampling_context ctx_sampling, llava_context ctx_llava, IntPtr ctx_cfg, float temp = 0, int idx = 0)
         {
             // Call the implementation function with is_resampling set to false by default
-            return llama_sampling_sample_impl(ctx_sampling, ctx_main, ctx_cfg, idx, false, temp);
+            return llama_sampling_sample_impl(ctx_sampling, ctx_llava, ctx_cfg, idx, false, temp);
         }
 
-        private static string sample(llama_sampling_context ctx_sampling, IntPtr ctx_llama, ref int n_past, float temp = 0)
+        private static string sample(llama_sampling_context ctx_sampling, llava_context ctx_llava, ref int n_past, float temp = 0)
         {
-            int id = llama_sampling_sample(ctx_sampling, ctx_llama, IntPtr.Zero, temp);
+            int id = llama_sampling_sample(ctx_sampling, ctx_llava, IntPtr.Zero, temp);
             llama_sampling_accept(ref ctx_sampling, id);
             string ret = string.Empty;
-            if (id == Native.llama_token_eos(Native.llama_get_model(ctx_llama)))
+            if (id == Native.llama_token_eos(ctx_llava.model))
             {
                 ret = "</s>";
             }
             else
             {
-                ret = llama_token_to_piece(ctx_llama, id);
+                ret = llama_token_to_piece(ctx_llava, id);
             }
-            eval_id(ctx_llama, id, ref n_past);
+            eval_id(ctx_llava.ctx_llama, id, ref n_past);
             return ret;
         }
 
@@ -350,11 +332,11 @@ namespace LLavaSharp
             return Lib.eval_tokens(ctx_llama, tokens, 1, ref n_past);
         }
 
-        private static int llama_sampling_sample_impl(llama_sampling_context ctx_sampling, IntPtr ctx_main, IntPtr ctx_cfg, int idx, bool is_resampling, float temp = 0)
+        private static int llama_sampling_sample_impl(llama_sampling_context ctx_sampling, llava_context ctx_llava, IntPtr ctx_cfg, int idx, bool is_resampling, float temp = 0)
         {  // Add a parameter to indicate if we are resampling
             llama_sampling_params @params = ctx_sampling.@params;
 
-            int n_vocab = Native.llama_n_vocab(Native.llama_get_model(ctx_main));
+            int n_vocab = Native.llama_n_vocab(ctx_llava.model);
 
             //float temp = @params.temp;
             temp = (temp == 0 ? @params.temp : temp);
@@ -373,15 +355,15 @@ namespace LLavaSharp
             int id = 0;
 
             // Get a pointer to the logits
-            IntPtr logits = Native.llama_get_logits_ith(ctx_main, idx);
-            int logitsLength = Native.llama_n_vocab(Native.llama_get_model(ctx_main));
+            IntPtr logits = Native.llama_get_logits_ith(ctx_llava.ctx_llama, idx);
+            int logitsLength = Native.llama_n_vocab(ctx_llava.model);
             float[] original_logits = new float[logitsLength];
 
             // Declare original_logits at the beginning of the function scope
 
             if (!is_resampling)
             {
-                int original_logits_length = Native.llama_n_vocab(Native.llama_get_model(ctx_main));
+                int original_logits_length = Native.llama_n_vocab(ctx_llava.model);
                 original_logits = new float[original_logits_length];
                 // Only make a copy of the original logits if we are not in the resampling phase, not sure if I actually have to do this.
                 Marshal.Copy(logits, original_logits, 0, original_logits_length);
@@ -411,27 +393,27 @@ namespace LLavaSharp
             //         penalty_tokens_used_size, penalty_repeat, penalty_freq, penalty_present);
             //}
 
-            StringBuilder stringBuilder = new StringBuilder();
-            for (int i = 0; i < 32000; i++)
-            {
-                llama_token_data dt = (llama_token_data)Marshal.PtrToStructure(Marshal.UnsafeAddrOfPinnedArrayElement(cur, i), typeof(llama_token_data));
-                stringBuilder.AppendLine($"{dt.logit}");
-            }
-            File.WriteAllText("dt.txt", stringBuilder.ToString());
+            //StringBuilder stringBuilder = new StringBuilder();
+            //for (int i = 0; i < 32000; i++)
+            //{
+            //    llama_token_data dt = (llama_token_data)Marshal.PtrToStructure(Marshal.UnsafeAddrOfPinnedArrayElement(cur, i), typeof(llama_token_data));
+            //    stringBuilder.AppendLine($"{dt.logit}");
+            //}
+            //File.WriteAllText("dt.txt", stringBuilder.ToString());
 
             int min_keep = Math.Max(1, @params.n_probs);
 
-            sampler_queue(ctx_main, @params, ref cur_p, min_keep);
+            sampler_queue(ctx_llava, @params, ref cur_p, min_keep);
 
 
-            id = Native.llama_sample_token(ctx_main, ref cur_p);
+            id = Native.llama_sample_token(ctx_llava.ctx_llama, ref cur_p);
 
             return id;
         }
 
-        private static void sampler_queue(IntPtr ctx_main, llama_sampling_params @params, ref llama_token_data_array cur_p, int min_keep)
+        private static void sampler_queue(llava_context ctx_llava, llama_sampling_params @params, ref llama_token_data_array cur_p, int min_keep)
         {
-            int n_vocab = Native.llama_n_vocab(Native.llama_get_model(ctx_main));
+            int n_vocab = Native.llama_n_vocab(ctx_llava.model);
 
             float temp = @params.temp;
             float dynatemp_range = @params.dynatemp_range;
@@ -447,21 +429,21 @@ namespace LLavaSharp
             {
                 switch (s)
                 {
-                    case 'k': Native.llama_sample_top_k(ctx_main, ref cur_p, top_k, min_keep); break;
-                    case 'f': Native.llama_sample_tail_free(ctx_main, ref cur_p, tfs_z, min_keep); break;
-                    case 'y': Native.llama_sample_typical(ctx_main, ref cur_p, typical_p, min_keep); break;
-                    case 'p': Native.llama_sample_top_p(ctx_main, ref cur_p, top_p, min_keep); break;
-                    case 'm': Native.llama_sample_min_p(ctx_main, ref cur_p, min_p, min_keep); break;
+                    case 'k': Native.llama_sample_top_k(ctx_llava.ctx_llama, ref cur_p, top_k, min_keep); break;
+                    case 'f': Native.llama_sample_tail_free(ctx_llava.ctx_llama, ref cur_p, tfs_z, min_keep); break;
+                    case 'y': Native.llama_sample_typical(ctx_llava.ctx_llama, ref cur_p, typical_p, min_keep); break;
+                    case 'p': Native.llama_sample_top_p(ctx_llava.ctx_llama, ref cur_p, top_p, min_keep); break;
+                    case 'm': Native.llama_sample_min_p(ctx_llava.ctx_llama, ref cur_p, min_p, min_keep); break;
                     case 't':
                         if (dynatemp_range > 0)
                         {
                             float dynatemp_min = Math.Max(0.0f, temp - dynatemp_range);
                             float dynatemp_max = Math.Max(0.0f, temp + dynatemp_range);
-                            Native.llama_sample_entropy(ctx_main, ref cur_p, dynatemp_min, dynatemp_max, dynatemp_exponent);
+                            Native.llama_sample_entropy(ctx_llava.ctx_llama, ref cur_p, dynatemp_min, dynatemp_max, dynatemp_exponent);
                         }
                         else
                         {
-                            Native.llama_sample_temp(ctx_main, ref cur_p, temp);
+                            Native.llama_sample_temp(ctx_llava.ctx_llama, ref cur_p, temp);
                         }
                         break;
                     default: break;
@@ -478,14 +460,14 @@ namespace LLavaSharp
             ctx_sampling.prev = prev.ToArray();
         }
 
-        private static string llama_token_to_piece(IntPtr ctx, llama_token token)
+        private static string llama_token_to_piece(llava_context ctx_llava, llama_token token)
         {
             char[] result = new char[8];
-            int n_tokens = Native.llama_token_to_piece(Native.llama_get_model(ctx), token, result, result.Length);
+            int n_tokens = Native.llama_token_to_piece(ctx_llava.model, token, result, result.Length);
             if (n_tokens < 0)
             {
                 Array.Resize(ref result, -n_tokens);
-                Native.llama_token_to_piece(Native.llama_get_model(ctx), token, result, result.Length);
+                Native.llama_token_to_piece(ctx_llava.model, token, result, result.Length);
             }
             else
             {

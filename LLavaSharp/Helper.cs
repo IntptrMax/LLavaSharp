@@ -8,7 +8,7 @@ namespace LLavaSharp
         private llava_context ctx_llava;
         gpt_params @params = new gpt_params();
 
-        public Helper(string model_path, string mmproj_path, int ngl = 32)
+        public Helper(string model_path, string mmproj_path, int ngl = 128)
         {
             @params.model = model_path;
             @params.mmproj = mmproj_path;

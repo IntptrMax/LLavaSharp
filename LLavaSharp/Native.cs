@@ -44,9 +44,6 @@ namespace LLavaSharp
         public extern static IntPtr llama_new_context_with_model(IntPtr model, llama_context_params llama_Context_Params);
 
         [DllImport(llama_dll, CallingConvention = CallingConvention.Cdecl)]
-        public extern static IntPtr llama_get_model(IntPtr ctx);
-
-        [DllImport(llama_dll, CallingConvention = CallingConvention.Cdecl)]
         public extern static bool llama_add_bos_token(IntPtr model);
 
         [DllImport(llama_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -56,7 +53,7 @@ namespace LLavaSharp
         public extern static int llama_tokenize(IntPtr model, string text, int text_len, [Out] int[] tokens, int n_max_tokens, bool add_bos, bool special);
 
         [DllImport(llama_dll, CallingConvention = CallingConvention.Cdecl)]
-        public extern static llama_batch llama_batch_get_one(IntPtr tokens, int n_tokens, ref llama_pos pos_0, llama_seq seq_id);
+        public extern static llama_batch llama_batch_get_one(IntPtr tokens, int n_tokens, llama_pos pos_0, llama_seq seq_id);
 
         [DllImport(llama_dll, CallingConvention = CallingConvention.Cdecl)]
         public extern static int llama_decode(IntPtr ctx, llama_batch batch);
@@ -128,6 +125,12 @@ namespace LLavaSharp
 
         [DllImport(llama_dll, CallingConvention = CallingConvention.Cdecl)]
         public static extern void llama_kv_cache_clear(IntPtr llama_ctx);
+
+        [DllImport(llama_dll, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void llama_set_n_threads(IntPtr llama_context, uint n_threads, uint n_threads_batch);
+
+        [DllImport(llama_dll, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void llama_numa_init(ggml_numa_strategy numa);
 
     }
 }
