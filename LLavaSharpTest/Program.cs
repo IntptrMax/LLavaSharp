@@ -59,7 +59,7 @@ namespace LLavaSharpTest
                 {
                     using (Bitmap bitmap = new Bitmap(file))
                     {
-                        string result = helper.ProcessImage(bitmap, "Describe the image in simple words.");
+                        string result = helper.ProcessImage(bitmap, "Describe the image in tags only.");
                         Console.ForegroundColor = ConsoleColor.DarkGreen;
                         Console.WriteLine(result);
                         Console.ResetColor();
