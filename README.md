@@ -8,9 +8,10 @@ Prompt:"describe the image."
 
 Input Image is:
 
-![307197041-6ad493df-de4c-401e-8587-9f469c8957c8](https://github.com/IntptrMax/LLavaSharp/assets/87850139/2c611042-f041-49b4-8767-41cc573379b7)
+![1](https://github.com/IntptrMax/LLavaSharp/assets/87850139/9860a41d-9d0f-4946-a382-392d270f55e9)
+
 
 The output is:
 
+![image](https://github.com/IntptrMax/LLavaSharp/assets/87850139/b5273a51-e375-4418-92fe-2d07d6b1e5a2)
 
-![307197214-5feab020-6fb1-4cc6-ae70-043345c391f1](https://github.com/IntptrMax/LLavaSharp/assets/87850139/5b757c02-5c28-4c06-b483-948b97bd552f)
